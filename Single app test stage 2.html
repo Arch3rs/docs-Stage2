@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stage 2 - Excel Checklist</title>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.4/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  body { font-family: Arial; padding: 20px; background-color: #f0f8ff; }
+  table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+  td, th { border: 1px solid black; padding: 5px; text-align: left; }
+  #sigCanvas { border: 1px solid #ccc; background: white; touch-action: none; margin-top: 10px; }
+  #watermark { position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: rgba(0,0,0,0.2); }
+  input, button { margin-top: 5px; padding: 5px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h2>Stage 2 - Ticked Items</h2>
+<div id="tickedTableContainer"></div>
+
+<h3>Form Details & Signature</h3>
+<label>Name: <input type="text" id="name2" placeholder="Enter your name"></label><br>
+<label>Date: <input type="date" id="date2"></label><br>
+<label>Order Number: <input type="text" id="order2" readonly></label><br><br>
+
+<canvas id="sigCanvas" width="400" height="150"></canvas><br>
+<button onclick="clearSig()">Clear Signature</button><br><br>
+<button onclick="generatePDF()">Complete</button>
+
+<div id="watermark">Powered by G&T Manufacturing LTD</div>
+
+<script>
+const sigCanvas = document.getElementById('sigCanvas');
+const sigPad = new SignaturePad(sigCanvas);
+
+// Clear signature
+function clearSig(){ sigPad.clear(); }
+
+// Helper to read Base64-encoded JSON from URL
+function getStage1DataFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const encoded = urlParams.get('data');
+    if (!encoded) return null;
+    try {
+        return JSON.parse(atob(decodeURIComponent(encoded)));
+    } catch(e) {
+        console.error("Failed to decode Stage 1 data:", e);
+        return null;
+    }
+}
+
+const stage1Data = getStage1DataFromURL();
+if(stage1Data){
+    document.getElementById('name2').value = stage1Data.name;
+    document.getElementById('order2').value = stage1Data.orderNumber;
+    document.getElementById('date2').value = new Date().toISOString().substr(0,10);
+
+    // Render ticked table
+    const container = document.getElementById('tickedTableContainer');
+    const table = document.createElement('table');
+    const allowedCols = [1,2,5,6];
+
+    // Header row (row 12)
+    const headerRow = stage1Data.tickedRows[0];
+    const headerTr = document.createElement('tr');
+    allowedCols.forEach(idx=>{
+        const th = document.createElement('th');
+        th.textContent = headerRow[idx];
+        headerTr.appendChild(th);
+    });
+    table.appendChild(headerTr);
+
+    // Ticked rows
+    stage1Data.tickedRows.forEach((row,i)=>{
+        if(i===0) return; // skip header
+        const tr = document.createElement('tr');
+        allowedCols.forEach(idx=>{
+            const td = document.createElement('td');
+            td.textContent = row[idx];
+            tr.appendChild(td);
+        });
+        table.appendChild(tr);
+    });
+
+    container.appendChild(table);
+}
+
+// Generate PDF
+function generatePDF(){
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','pt','a4');
+    pdf.setFontSize(16);
+    pdf.text("Excel Checklist", 20, 20);
+
+    let y = 40;
+    pdf.setFontSize(12);
+
+    // Table
+    const tableRows = stage1Data?.tickedRows || [];
+    tableRows.forEach((row, i) => {
+        if(i===0) return; // skip header
+        let xOffset = 20;
+        [1,2,5,6].forEach(idx=>{
+            pdf.text(row[idx] ? row[idx].toString() : '', xOffset, y);
+            xOffset += 120;
+        });
+        y += 15;
+    });
+
+    y += 10;
+    const name = document.getElementById('name2').value;
+    const date = document.getElementById('date2').value;
+    pdf.text('Name: '+name,20,y); y+=15;
+    pdf.text('Date: '+date,20,y); y+=15;
+    pdf.text('Order Number: '+document.getElementById('order2').value,20,y); y+=20;
+
+    if(!sigPad.isEmpty()){
+        const sigImg = sigPad.toDataURL();
+        pdf.addImage(sigImg,'PNG',20,y,400,150);
+        y += 160;
+    }
+
+    const now = new Date();
+    pdf.text('Generated: '+now.toLocaleString(),20,y);
+    pdf.text('Powered by G&T Manufacturing LTD',450,780);
+
+    pdf.save('Checklist_'+document.getElementById('order2').value+'.pdf');
+}
+</script>
+
+</body>
+</html>
