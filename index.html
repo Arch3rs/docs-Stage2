@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stage 2 - Proof of Delivery</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+    }
+    h2, h3 {
+      margin-top: 20px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 15px;
+    }
+    td, th {
+      border: 1px solid #444;
+      padding: 6px;
+      text-align: left;
+    }
+    #signature {
+      border: 2px solid #000;
+      width: 100%;
+      height: 150px;
+      background-color: #fff;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      text-align: right;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <h2>Stage 2 - Proof of Delivery</h2>
+
+  <div id="orderInfo"></div>
+  <div id="rowsContainer"></div>
+
+  <h3>Name:</h3>
+  <input type="text" id="nameInput" placeholder="Enter your name"><br><br>
+
+  <h3>Signature:</h3>
+  <canvas id="signature"></canvas><br><br>
+  <button onclick="clearSignature()">Clear Signature</button>
+  <button onclick="generatePDF()">Complete</button>
+
+  <div class="footer">Powered by G&amp;T Manufacturing LTD</div>
+
+  <script>
+    // Parse incoming data from query parameter ?data=...
+    const urlParams = new URLSearchParams(window.location.search);
+    const rawData = urlParams.get('data');
+    let stage1Data = null;
+
+    if (rawData) {
+      try {
+        stage1Data = JSON.parse(decodeURIComponent(rawData));
+        renderStage2(stage1Data);
+      } catch (err) {
+        document.getElementById('orderInfo').innerText = "Error loading Stage 1 data.";
+      }
+    } else {
+      document.getElementById('orderInfo').innerText = "No Stage 1 data provided.";
+    }
+
+    function renderStage2(data) {
+      document.getElementById('orderInfo').innerHTML = 
+        `<strong>Order Number:</strong> ${data.orderNumber}`;
+
+      const container = document.getElementById('rowsContainer');
+      let table = "<table><tr><th>Section</th><th>Item</th><th>Quantity</th><th>Soft Seal</th></tr>";
+      data.tickedRows.forEach(row => {
+        table += `<tr>
+          <td>${row[1] || ""}</td>
+          <td>${row[2] || ""}</td>
+          <td>${row[5] || ""}</td>
+          <td>${row[6] || ""}</td>
+        </tr>`;
+      });
+      table += "</table>";
+      container.innerHTML = table;
+    }
+
+    // Signature pad
+    const canvas = document.getElementById('signature');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('mouseleave', endDraw);
+
+    function startDraw(e) {
+      drawing = true;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    }
+    function draw(e) {
+      if (!drawing) return;
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+    }
+    function endDraw() {
+      drawing = false;
+    }
+    function clearSignature() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function generatePDF() {
+      alert("Here we would generate the PDF with name + signature + order info.");
+    }
+  </script>
+</body>
+</html>
+
